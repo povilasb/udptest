@@ -1,20 +1,27 @@
+from typing import Tuple
+
 from curio import socket
 import curio
 
 
-async def run_server() -> None:
-    server_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    server_sock.bind(('0.0.0.0', 3000))
+class Server:
+    def __init__(self, port: int) -> None:
+        self._port = port
+        self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self._tasks = curio.Queue()
 
-    tasks = curio.Queue()
-    await curio.spawn(join_tasks, tasks)
+    async def run(self) -> None:
+        self._sock.bind(('0.0.0.0', self._port))
+        await curio.spawn(join_tasks, self._tasks)
 
-    async with server_sock:
-        while True:
-            data, addr = await server_sock.recvfrom(4096)
+        async with self._sock:
+            while True:
+                data, addr = await self._sock.recvfrom(4096)
+                await self._on_data(data, addr)
 
-            task = await curio.spawn(server_sock.sendto, b'response', addr)
-            await tasks.put(task)
+    async def _on_data(self, data: bytes, addr: Tuple[str, int]) -> None:
+        task = await curio.spawn(self._sock.sendto, b'response', addr)
+        await self._tasks.put(task)
 
 
 async def join_tasks(tasks: curio.Queue) -> None:
@@ -24,7 +31,8 @@ async def join_tasks(tasks: curio.Queue) -> None:
 
 
 def main() -> None:
-    curio.run(run_server)
+    server = Server(3000)
+    curio.run(server.run)
 
 
 main()
