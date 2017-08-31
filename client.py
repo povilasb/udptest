@@ -8,7 +8,6 @@ import curio
 import click
 
 
-
 @click.command()
 @click.option('--host', '-h', 'host', default='127.0.0.1', type=str,
               help='Target address.',)
@@ -28,7 +27,7 @@ def main(host: str, port: int, packet_count: int, recv_timeout: str) -> None:
 
 class Test:
     def __init__(self, target: Tuple[str, int], packet_count: int,
-            timeout: int=3) -> None:
+                 timeout: int=3) -> None:
         self._target = target
         self._packet_count = packet_count
         self._timeout = timeout
@@ -64,9 +63,10 @@ class Test:
 
 
 def make_packet(id_: int, size: int) -> bytes:
-    return struct.pack('!H', id_) + \
-        ''.join(random.choice(string.ascii_lowercase) for i in range(size - 2))\
-            .encode('ascii')
+    body = ''.join(
+        random.choice(string.ascii_lowercase) for i in range(size - 2)
+    ).encode('ascii')
+    return struct.pack('!H', id_) + body
 
 
 main()
