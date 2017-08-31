@@ -2,6 +2,7 @@ from typing import Tuple
 
 from curio import socket
 import curio
+import click
 
 
 class Server:
@@ -35,8 +36,11 @@ async def join_tasks(tasks: curio.Queue) -> None:
         await t.join()
 
 
-def main() -> None:
-    server = Server(3000)
+@click.command()
+@click.option('--port', '-p', 'port', default='3000', type=int,
+              help='UDP port to listen for incomming requests.',)
+def main(port: int) -> None:
+    server = Server(port)
     curio.run(server.run)
 
 
