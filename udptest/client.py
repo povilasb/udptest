@@ -37,7 +37,10 @@ class Test:
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     def run(self) -> None:
-        curio.run(self._run_test)
+        try:
+            curio.run(self._run_test)
+        except KeyboardInterrupt:
+            print('Cancelled')
 
     async def _run_test(self) -> None:
         recv_task = await curio.spawn(self._recv_packets)
