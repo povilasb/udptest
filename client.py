@@ -1,52 +1,57 @@
-import socket
 import random
 import string
 import struct
-from threading import Thread
 from typing import Tuple
-import time
+
+from curio import socket
+import curio
 
 
 def main():
     target = ('127.0.0.1', 3000)
     packet_count = 100
-    wait_for_response = 3  # seconds
+    timeout = 1  # seconds
 
-    test = Test(target, packet_count)
+    test = Test(target, packet_count, timeout)
     test.run()
 
     print('Packets sent:', packet_count)
-    print(f'Sleep for {wait_for_response} seconds')
-    time.sleep(wait_for_response)
     print('Packets received:', test.packets_received)
 
 
 class Test:
-    def __init__(self, target: Tuple[str, int], packet_count: int) -> None:
+    def __init__(self, target: Tuple[str, int], packet_count: int,
+            timeout: int=3) -> None:
         self._target = target
         self._packet_count = packet_count
+        self._timeout = timeout
 
         self.packets_received = 0
 
-        self._server_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self._recv_thread = Thread(target=self._recv_packets)
-
-    def __del__(self) -> None:
-        self._server_sock.close()
+        self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self._keep_running = True
 
     def run(self) -> None:
-        self._recv_thread.start()
-        for nr in range(self._packet_count):
-            self._server_sock.sendto(
-                make_packet(nr, 1500),
-                self._target,
-            )
+        curio.run(self._run_test)
 
-    def _recv_packets(self) -> None:
-        while True:
-            data, addr = self._server_sock.recvfrom(4096)
-            print(data)
+    async def _run_test(self) -> None:
+        recv_task = await curio.spawn(self._recv_packets)
+        await self._send_packets()
+        print('All packets sent')
+        await curio.sleep(self._timeout)
+        await recv_task.cancel()
+
+    async def _send_packets(self) -> None:
+        for nr in range(self._packet_count):
+            await self._sock.sendto(make_packet(nr, 1500), self._target,)
+
+    async def _recv_packets(self) -> None:
+        while self._keep_running:
+            data, addr = await self._sock.recvfrom(4096)
+            print('Received:', data)
             self.packets_received += 1
+            if self.packets_received >= self._packet_count:
+                self._keep_running = False
 
 
 def make_packet(id_: int, size: int) -> bytes:
