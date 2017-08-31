@@ -5,14 +5,21 @@ from typing import Tuple
 
 from curio import socket
 import curio
+import click
 
 
-def main():
-    target = ('127.0.0.1', 3000)
-    packet_count = 100
-    timeout = 1  # seconds
 
-    test = Test(target, packet_count, timeout)
+@click.command()
+@click.option('--host', '-h', 'host', default='127.0.0.1', type=str,
+              help='Target address.',)
+@click.option('--port', '-p', 'port', default=3000, type=int,
+              help='UDP port to listen for incomming requests.',)
+@click.option('--packet-count', '-c', 'packet_count', default=100, type=int,
+              help='Number of packets to send.',)
+@click.option('--recv-timeout', 'recv_timeout', default=3, type=int,
+              help='Timeout after N seconds of waiting for responses.',)
+def main(host: str, port: int, packet_count: int, recv_timeout: str) -> None:
+    test = Test((host, port), packet_count, recv_timeout)
     test.run()
 
     print('Packets sent:', packet_count)
