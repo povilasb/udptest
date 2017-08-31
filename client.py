@@ -36,7 +36,6 @@ class Test:
         self.packets_received = 0
 
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self._keep_running = True
 
     def run(self) -> None:
         curio.run(self._run_test)
@@ -45,20 +44,23 @@ class Test:
         recv_task = await curio.spawn(self._recv_packets)
         await self._send_packets()
         print('All packets sent')
-        await curio.sleep(self._timeout)
-        await recv_task.cancel()
+        try:
+            await curio.timeout_after(self._timeout, recv_task.join())
+        except curio.TaskTimeout:
+            await recv_task.cancel()
 
     async def _send_packets(self) -> None:
         for nr in range(self._packet_count):
             await self._sock.sendto(make_packet(nr, 1500), self._target,)
 
     async def _recv_packets(self) -> None:
-        while self._keep_running:
+        while True:
             data, addr = await self._sock.recvfrom(4096)
             print('Received:', data)
+
             self.packets_received += 1
             if self.packets_received >= self._packet_count:
-                self._keep_running = False
+                break
 
 
 def make_packet(id_: int, size: int) -> bytes:
